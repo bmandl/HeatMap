@@ -5,21 +5,22 @@ const margin = {
     top: 100,
     right: 20,
     bottom: 30,
-    left: 60
+    left: 65
 }
 
-const tickValues = Array(12).fill(1).map((val, index) => new Date().setMonth(index));
 
 const height = 630 - margin.top - margin.bottom;
-const width = 920 - margin.left - margin.right;
+const width = 1137 - margin.left - margin.right;
+const tickValues = Array(12).fill(1).map((val, index) => new Date().setMonth(index));
 
 const xScale = d3.scaleBand().rangeRound([0, width]);
 const yScale = d3.scaleTime().range([0, height])
-    .domain([new Date().setMonth(0), new Date().setMonth(11)]);
+    .domain([new Date().setMonth(-1), new Date().setMonth(11)]);
 
 const xAxis = d3.axisBottom(xScale).tickFormat(d3.format(".0f"));
 const yAxis = d3.axisLeft(yScale)
-    .tickValues(tickValues)
+    //.tickValues(tickValues)    
+    .tickSize(5, 0)
     .tickFormat(d3.timeFormat("%B"));
 
 const colorPallete = d3.scaleQuantize().range([
@@ -89,15 +90,18 @@ d3.json(jsonLink).then(dataset => {
     const cellWidth = width / xScale.domain().length;
     const cellHeight = height / 12;
 
+    console.log(cellWidth);
+
     colorPallete.domain(d3.extent(data, d => d.variance + dataset["baseTemperature"]));
 
     dataDisplay.append("g")
         .attr("id", "x-axis")
-        .attr("transform", `translate(0,${(height)})`)
+        .attr("transform", `translate(${-cellWidth/2},${(height)})`)
         .call(xAxis);
 
     dataDisplay.append("g")
         .attr("id", "y-axis")
+        .attr("transform", `translate(${-cellWidth/2-1},0)`)
         .call(yAxis);
 
     dataDisplay.selectAll("rect")
@@ -105,7 +109,8 @@ d3.json(jsonLink).then(dataset => {
         .enter()
         .append("rect")
         .attr("x", d =>
-            xScale.domain().indexOf(d.year) * cellWidth
+            xScale.domain().indexOf(d.year) * cellWidth - cellWidth / 2
+
         )
         .attr("y", d =>
             ((d.month) - 1) * cellHeight
@@ -113,7 +118,7 @@ d3.json(jsonLink).then(dataset => {
         .attr("width", cellWidth)
         .attr("height", cellHeight)
         .attr("class", "cell")
-        .attr("data-month", d => new Date(yAxis.tickValues()[d.month - 1]).getMonth())
+        .attr("data-month", d => new Date(tickValues[d.month - 1]).getMonth())
         .attr("data-year", d => d.year)
         .attr("data-temp", d => d.variance + dataset["baseTemperature"])
         .attr("fill", d => colorPallete(d.variance + dataset["baseTemperature"]))
