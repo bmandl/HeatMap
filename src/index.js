@@ -4,6 +4,13 @@ const jsonLink = "https://raw.githubusercontent.com/freeCodeCamp/ProjectReferenc
 const margin = {
     top: 100,
     right: 20,
+    bottom: 120,
+    left: 65
+}
+
+const padding = {
+    top: 100,
+    right: 20,
     bottom: 30,
     left: 65
 }
@@ -57,17 +64,20 @@ const colorPallete = d3.scaleQuantize().range([
     "#FF0000"]
 );
 
+const lScale = d3.scaleLinear().rangeRound([0, 400]);
+const lAxis = d3.axisBottom(lScale)
+    .tickFormat(d3.format(".1f"))
+    .tickSize(10, 0);
+
 const dataDisplay = d3.select("body").append("svg")
     .attr("height", height + margin.top + margin.bottom)
     .attr("width", width + margin.left + margin.right)
-    .attr("class", "map")
-    .append("g")
     .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
 dataDisplay.append("text")
     .attr("id", "title")
     .attr("x", (width / 2))
-    .attr("y", 0 - (margin.top / 2))
+    .attr("y", (margin.top / 2))
     .attr("text-anchor", "middle")
     .style("font-size", "30px")
     .text("Monthly Global Land-Surface Temperature");
@@ -75,46 +85,60 @@ dataDisplay.append("text")
 dataDisplay.append("text")
     .attr("id", "description")
     .attr("x", (width / 2))
-    .attr("y", 0 - (margin.top / 2) + 40)
+    .attr("y", (margin.top / 2) + 40)
     .attr("text-anchor", "middle")
     .style("font-size", "20px")
     .text("1753 - 2015: base temperature 8.66℃");
 
-d3.json(jsonLink).then(dataset => {
+const legend = dataDisplay.append("g")
+    .attr("id", "legend")
+    .append("g")
 
+d3.json(jsonLink).then(dataset => {
+    var buff = 0;
     const data = dataset["monthlyVariance"];
 
     xScale.domain(data.map(val => val.year));
     xAxis.tickValues(xScale.domain().filter(year => year % 10 === 0));
 
+    lScale.domain(d3.extent(data, d => d.variance + dataset["baseTemperature"]));
+    lAxis.tickValues(data.map(d => d.variance + dataset["baseTemperature"])
+        .sort((a, b) => a - b)
+        .filter((d, i, arr) => {
+            buff = d >= buff + arr.slice(-1)[0] / 12 || buff === undefined ? d : buff;
+            return d === buff;
+        }));
+
+    buff = undefined;
+
     const cellWidth = width / xScale.domain().length;
     const cellHeight = height / 12;
 
-    console.log(cellWidth);
+    const lWidth = 40;
+    const lHeight = 40;
 
     colorPallete.domain(d3.extent(data, d => d.variance + dataset["baseTemperature"]));
 
     dataDisplay.append("g")
         .attr("id", "x-axis")
-        .attr("transform", `translate(${-cellWidth/2},${(height)})`)
+        .attr("transform", `translate(${padding.left - cellWidth / 2},${(padding.top + height)})`)
         .call(xAxis);
 
     dataDisplay.append("g")
         .attr("id", "y-axis")
-        .attr("transform", `translate(${-cellWidth/2-1},0)`)
+        .attr("transform", `translate(${padding.left - cellWidth / 2 - 1},${padding.top})`)
         .call(yAxis);
 
-    dataDisplay.selectAll("rect")
+    dataDisplay.append("g")
+        .attr("class", "map")
+        .attr("transform", `translate(${padding.left},${padding.top})`)
+        .selectAll("rect")
         .data(data)
         .enter()
         .append("rect")
         .attr("x", d =>
-            xScale.domain().indexOf(d.year) * cellWidth - cellWidth / 2
-
-        )
-        .attr("y", d =>
-            ((d.month) - 1) * cellHeight
-        )
+            xScale.domain().indexOf(d.year) * cellWidth - cellWidth / 2)
+        .attr("y", d => ((d.month) - 1) * cellHeight)
         .attr("width", cellWidth)
         .attr("height", cellHeight)
         .attr("class", "cell")
@@ -122,5 +146,25 @@ d3.json(jsonLink).then(dataset => {
         .attr("data-year", d => d.year)
         .attr("data-temp", d => d.variance + dataset["baseTemperature"])
         .attr("fill", d => colorPallete(d.variance + dataset["baseTemperature"]))
+
+    legend.append("g")
+        .call(lAxis)
+        .attr("transform", `translate(10,${margin.top + height + 80})`)
+
+    legend.selectAll("rect")
+        .data(data.map(d => d.variance + dataset["baseTemperature"])
+            .sort((a, b) => a - b)
+            .filter((d, i, arr) => {
+                buff = d >= buff + arr.slice(-1)[0] / 12 || buff === undefined ? d : buff;
+                return d === buff;
+            })
+        )
+        .enter()
+        .append("rect")
+        .attr("x", (d, i) => i * lWidth +10)
+        .attr("y", margin.top + height + 40)
+        .attr("width", lWidth)
+        .attr("height", lHeight)
+        .attr("fill", d => colorPallete(d))
 
 });
