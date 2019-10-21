@@ -94,6 +94,12 @@ const legend = dataDisplay.append("g")
     .attr("id", "legend")
     .append("g")
 
+const toolTip = d3.select("body").append("div")
+    .attr("id", "tooltip");
+
+var cellWidth;
+var cellHeight;
+
 d3.json(jsonLink).then(dataset => {
     var buff = 0;
     const data = dataset["monthlyVariance"];
@@ -111,8 +117,8 @@ d3.json(jsonLink).then(dataset => {
 
     buff = undefined;
 
-    const cellWidth = width / xScale.domain().length;
-    const cellHeight = height / 12;
+    cellWidth = width / xScale.domain().length;
+    cellHeight = height / 12;
 
     const lWidth = 40;
     const lHeight = 40;
@@ -146,6 +152,12 @@ d3.json(jsonLink).then(dataset => {
         .attr("data-year", d => d.year)
         .attr("data-temp", d => d.variance + dataset["baseTemperature"])
         .attr("fill", d => colorPallete(d.variance + dataset["baseTemperature"]))
+        .on("mouseover", handleMouseOver)
+        .on('mouseout', () => {
+            toolTip.transition()
+                .duration(200)
+                .style('opacity', 0);
+        });
 
     legend.append("g")
         .call(lAxis)
@@ -161,10 +173,38 @@ d3.json(jsonLink).then(dataset => {
         )
         .enter()
         .append("rect")
-        .attr("x", (d, i) => i * lWidth +10)
+        .attr("x", (d, i) => i * lWidth + 10)
         .attr("y", margin.top + height + 40)
         .attr("width", lWidth)
         .attr("height", lHeight)
         .attr("fill", d => colorPallete(d))
-
 });
+
+
+function handleMouseOver(d) {
+    let date = new Date();
+    var month = new Array();
+    month[0] = "January";
+    month[1] = "February";
+    month[2] = "March";
+    month[3] = "April";
+    month[4] = "May";
+    month[5] = "June";
+    month[6] = "July";
+    month[7] = "August";
+    month[8] = "September";
+    month[9] = "October";
+    month[10] = "November";
+    month[11] = "December";
+    date.setMonth(d3.select(this).attr("data-month"));
+    
+    toolTip.transition()
+        .duration(200)
+        .style('opacity', 0.75);
+    toolTip.html(`${d3.select(this).attr("data-year")} - ${month[date.getMonth()]}<br>
+    ${Math.round(d3.select(this).attr("data-temp")*100)/100}<br>
+    ${d.variance}`)
+        .style('left', `${event.clientX}px`)
+        .style('top', `${parseInt(d3.select(this).attr("y")) + margin.top}px`)
+        .attr("data-year", d3.select(this).attr("data-year"))
+}
